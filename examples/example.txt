@@ -1,0 +1,228 @@
+Neural networks are computational systems inspired by the structure and function of the human brain. They are designed to recognize patterns, make predictions, and learn from data. At their core, neural networks are mathematical models that take input data, process it through a set of interconnected layers, and produce an output.
+
+This document walks through the fundamental concepts behind neural networks: what they are, why they work, and how they learn over time.
+
+---
+
+WHAT IS A NEURAL NETWORK?
+
+A neural network is made up of layers of “neurons,” which are simple mathematical functions. Each neuron receives numbers as input, performs a weighted sum, applies an activation function, and outputs a number. By connecting many neurons together and adjusting their weights, a neural network can learn extremely complex patterns.
+
+Neural networks are commonly used in applications such as image recognition, language translation, speech recognition, recommendation systems, and many other areas.
+
+---
+
+BIOLOGICAL INSPIRATION
+
+Neural networks are loosely inspired by biological neurons in the human brain. In biology, a neuron receives signals from other neurons, processes them, and sends signals onward. A biological brain contains billions of neurons connected through trillions of synapses.
+
+Artificial neural networks simplify this idea. Instead of electrochemical signals, we use numbers. Instead of synapses, we use weights. Instead of firing or not firing, we compute math functions. The inspiration is biological, but the implementation is entirely mathematical.
+
+---
+
+LAYERS IN A NEURAL NETWORK
+
+A typical neural network contains three types of layers:
+
+1. Input Layer
+   This is where data enters the network. For example, a grayscale image might be flattened into a long list of pixel values.
+
+2. Hidden Layers
+   These are layers in the middle that transform the data through a series of computations. A neural network can have one or many hidden layers. Networks with many layers are called "deep" neural networks, and this is where the term "deep learning" comes from.
+
+3. Output Layer
+   This is where the network makes its final prediction. For example, in a classifier, the output might be probabilities for different classes.
+
+Each layer contains multiple neurons, and each neuron has weights and a bias value. These parameters determine how strongly each input influences the output.
+
+---
+
+THE FORWARD PASS
+
+The forward pass is the process of computing the output of a neural network given some input.
+
+For a single neuron, the output is computed as:
+
+Output = Activation( W1*x1 + W2*x2 + ... + Wn*xn + Bias )
+
+Where:
+
+* x1, x2, …, xn are the input values,
+* W1, W2, …, Wn are weights,
+* Bias is an adjustable parameter,
+* Activation is a non-linear function.
+
+The activation function is important because it allows the network to model non-linear behavior. Common activation functions include ReLU (Rectified Linear Unit), sigmoid, and tanh.
+
+The forward pass simply applies this computation layer by layer until the output of the final layer is produced.
+
+---
+
+WHY ACTIVATION FUNCTIONS MATTER
+
+If neural networks used no activation functions, they would behave like simple linear equations, no matter how many layers they had. This would severely limit what they can learn.
+
+Activation functions allow networks to capture complex patterns. For example:
+
+* ReLU allows networks to ignore negative values,
+* Sigmoid compresses values between 0 and 1,
+* Tanh compresses values between -1 and 1.
+
+Modern deep learning almost always uses ReLU or variants of it because it helps networks train faster and avoids certain mathematical problems.
+
+---
+
+TRAINING A NEURAL NETWORK
+
+Neural networks "learn" by adjusting their weights and biases. Training involves three main steps:
+
+1. Forward Pass
+   Compute predictions using the current weights.
+
+2. Loss Calculation
+   Compare predictions to the true labels using a loss function.
+   For example:
+
+   * Mean Squared Error for regression
+   * Cross Entropy for classification
+
+3. Backpropagation
+   Compute how the loss changes with respect to each weight.
+   This is done using calculus (the chain rule).
+
+4. Weight Update
+   Adjust weights using an optimization algorithm such as gradient descent.
+
+This cycle repeats many times, often across thousands or millions of examples. Over time, the network learns weights that minimize its error.
+
+---
+
+GRADIENT DESCENT
+
+Gradient descent is an algorithm that adjusts weights to minimize the loss function. It works by computing the gradient: a vector that points in the direction of steepest increase. To minimize a function, you move in the opposite direction.
+
+For each weight:
+new_weight = old_weight - learning_rate * gradient
+
+The learning rate controls how big the steps are.
+If it is too big, training becomes unstable.
+If it is too small, training becomes slow.
+
+Stochastic gradient descent (SGD) and Adam are widely used variants.
+
+---
+
+BACKPROPAGATION
+
+Backpropagation is the algorithm that computes the gradients needed for training. It efficiently applies the chain rule of calculus to propagate error backward through the network.
+
+Here is how it works:
+
+* Compare the network’s output to the correct answer to compute an error.
+* Calculate how much each neuron contributed to the error.
+* Update weights accordingly.
+
+Backpropagation is the key reason modern neural networks can be trained at scale.
+
+---
+
+OVERFITTING AND GENERALIZATION
+
+A network can become too good at memorizing training data. This is called overfitting. When this happens, the model performs poorly on new, unseen data.
+
+Ways to reduce overfitting include:
+
+* Using more training data,
+* Data augmentation,
+* Regularization (L1, L2),
+* Dropout layers,
+* Early stopping.
+
+The goal of a neural network is not to memorize the data but to generalize from it.
+
+---
+
+DEEP NEURAL NETWORKS
+
+Deep neural networks contain many hidden layers. More layers allow the network to learn hierarchical features. For example:
+
+* In image classification:
+  The first layers might detect edges, the next shapes, the next object parts, and the final layers whole objects.
+* In language models:
+  Early layers detect grammar patterns, later layers detect meaning, and high-level layers capture context.
+
+This hierarchy is what makes deep learning so powerful.
+
+---
+
+CONVOLUTIONAL NEURAL NETWORKS (CNNs)
+
+CNNs are specialized neural networks for image and audio processing.
+Instead of fully connecting all neurons, they use convolutional filters that slide across the image.
+
+Benefits:
+
+* Good at detecting patterns regardless of position,
+* Fewer parameters,
+* Highly efficient for image tasks.
+
+CNNs power tasks like image detection, facial recognition, and medical imaging.
+
+---
+
+RECURRENT NEURAL NETWORKS (RNNs)
+
+RNNs are designed for sequential data such as text or time-series.
+They have loops that allow information to persist through time.
+
+Variants include:
+
+* LSTM (Long Short-Term Memory)
+* GRU (Gated Recurrent Unit)
+
+Modern language models mostly rely on Transformers, but RNNs are foundational concepts.
+
+---
+
+TRANSFORMERS
+
+Transformers have become the dominant architecture in natural language processing.
+They use a mechanism called self-attention, which allows the model to weigh the importance of different words in a sentence.
+
+Transformers scale extremely well and are used in models like:
+
+* GPT
+* Llama
+* Claude
+* Mistral
+
+Their ability to capture long-range dependencies and parallelize computation makes them ideal for large-scale training.
+
+---
+
+WHY NEURAL NETWORKS WORK
+
+Neural networks work because they can approximate extremely complex mathematical functions.
+The universal approximation theorem states that a neural network with enough neurons can approximate any continuous function to arbitrary precision.
+
+Combined with:
+
+* large datasets,
+* fast GPUs,
+* improved training techniques,
+
+neural networks have become the backbone of modern AI.
+
+---
+
+LIMITATIONS OF NEURAL NETWORKS
+
+Neural networks have incredible capabilities, but they have limitations:
+
+* They require large amounts of data.
+* Training can be computationally expensive.
+* They can be difficult to interpret.
+* They can be sensitive to the quality of data.
+* They can make confident mistakes.
+
+Understanding these limitations helps practitioners design better systems.
