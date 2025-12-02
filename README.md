@@ -1,6 +1,5 @@
-## `README.md`
+# **Local LLM Demo**
 
-````markdown
 # llm-local
 
 A small, reusable Python library for interacting with **local LLMs** (e.g. [Ollama](https://ollama.com/)),
