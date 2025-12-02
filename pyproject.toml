@@ -1,0 +1,56 @@
+[project]
+name = "llm_local"
+version = "0.1.0"
+description = "A reusable library for interacting with local LLMs (e.g. Ollama)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+
+keywords = ["llm", "local-llm", "ollama", "ai", "summarization"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "requests>=2.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6.0",
+    "pytest>=8.0.0",
+    "mypy>=1.10.0",
+]
+
+[build-system]
+requires = ["uv-build"]
+build-backend = "uv_build.backend"
+
+[tool.uv]
+# If you want to include/exclude files explicitly:
+package = ["llm_local"]
+
+[tool.uv.sources]
+# Add optional local sources here if needed
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+ignore_missing_imports = true
+
+[tasks.pull]
+cmd = "ollama pull llama3.2:3b"
+
+[tasks.serve]
+cmd = "ollama serve"

@@ -1,0 +1,25 @@
+# Ruff configuration for llm-local
+
+line-length = 100
+target-version = "py310"
+
+[lint]
+# Common, helpful rule sets:
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+
+# Common ignores:
+ignore = [
+    "E203",  # whitespace before ':', conflicts with Black
+    "W503",  # line break before binary operator, conflicts with Black
+]
+
+[lint.isort]
+known-first-party = ["llm_local"]
+combine-as-imports = true
+force-sort-within-sections = true
