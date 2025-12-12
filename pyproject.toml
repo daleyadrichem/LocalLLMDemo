@@ -20,25 +20,20 @@ classifiers = [
 
 dependencies = [
     "requests>=2.32.0",
+    "sphinx",
+    "sphinx-rtd-theme"
 ]
 
 [project.optional-dependencies]
 dev = [
     "ruff>=0.6.0",
     "pytest>=8.0.0",
-    "mypy>=1.10.0",
+    "mypy>=1.10.0"
 ]
 
 [build-system]
 requires = ["uv-build"]
-build-backend = "uv_build.backend"
-
-[tool.uv]
-# If you want to include/exclude files explicitly:
-package = ["llm_local"]
-
-[tool.uv.sources]
-# Add optional local sources here if needed
+build-backend = "uv_build"
 
 [tool.ruff]
 line-length = 100
