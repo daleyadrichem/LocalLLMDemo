@@ -42,13 +42,6 @@ Start the Ollama server (if not already running):
 ollama serve
 ```
 
-Alternatively, to download and run this exact model, uv can be used with:
-
-```bash
-uv run pull
-uv run serve
-```
-
 ### 2. Install the package (using uv)
 
 From the project root:

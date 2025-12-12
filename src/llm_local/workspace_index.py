@@ -35,20 +35,20 @@ class ClassMetadataStore:
     """
     JSON-backed store for class-level metadata across a workspace.
 
-    The data structure is:
+    The stored JSON has the following structure::
 
         {
           "<file_path>": {
             "<class_name>": {
               "interface": "...",
               "summary": "..."
-            },
-            ...
-          },
-          ...
+            }
+          }
         }
 
-    Paths are stored as strings (usually relative to the workspace root).
+    Notes
+    -----
+    Paths are stored as strings (typically relative to the workspace root).
     """
 
     json_path: Path
