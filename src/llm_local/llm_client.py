@@ -45,7 +45,7 @@ class LocalLLMConfig:
 
     model: str = "llama3.2:3b"
     base_url: str = "http://localhost:11434"
-    timeout_seconds: int = 120
+    timeout_seconds: int = 360
     default_temperature: float = 0.2
     default_max_tokens: Optional[int] = None
     default_options: Dict[str, Any] = field(default_factory=dict)

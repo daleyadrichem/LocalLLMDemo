@@ -164,6 +164,95 @@ class CodeService:
             prompt=prompt,
             max_tokens=max_tokens,
         )
+    
+
+    def describe_module(self, max_tokens: Optional[int] = None) -> str:
+        """
+        Ask the LLM to describe what the module (file) does.
+
+        This should be used even when the module contains classes, because
+        modules often define additional top-level functions/constants that
+        are part of the public API.
+
+        Returns
+        -------
+        str
+            A concise documentation-style summary of the module.
+        """
+        prompt = textwrap.dedent(
+            f"""
+            You are an expert software engineer.
+
+            You are given a code file and some additional repository context.
+            Describe this Python module (the file) in clear, concise language.
+
+            Focus on:
+            - What the module provides (its purpose / responsibilities).
+            - The main public API exposed by the module (classes, functions, constants).
+            - How it likely fits into the bigger system.
+            - Any notable design decisions or patterns.
+
+            Keep it suitable for developer documentation.
+
+            Repository context (may be partial, use only if helpful):
+            --------------------
+            {self.context}
+            --------------------
+
+            Code file:
+            --------------------
+            {self.code}
+            --------------------
+            """
+        ).strip()
+
+        return self.llm.generate(prompt=prompt, max_tokens=max_tokens)
+
+    def describe_function(self, function_name: str, max_tokens: Optional[int] = None) -> str:
+        """
+        Ask the LLM to describe a top-level function in natural language.
+
+        Parameters
+        ----------
+        function_name :
+            Name of the top-level function to describe.
+        max_tokens :
+            Optional max tokens for the LLM response.
+
+        Returns
+        -------
+        str
+            A documentation-style description of the function.
+        """
+        prompt = textwrap.dedent(
+            f"""
+            You are an expert software engineer.
+
+            You are given a code file and some additional repository context.
+            Describe the top-level function '{function_name}' in clear, concise language.
+
+            Focus on:
+            - What the function does and when it should be used.
+            - Its parameters and return value (at a high level).
+            - Any important edge cases or error handling.
+            - Side effects or interactions with other components (if any).
+
+            Keep the description suitable for developer documentation.
+
+            Repository context (may be partial, use only if helpful):
+            --------------------
+            {self.context}
+            --------------------
+
+            Code file:
+            --------------------
+            {self.code}
+            --------------------
+            """
+        ).strip()
+
+        return self.llm.generate(prompt=prompt, max_tokens=max_tokens)
+
 
     def add_functionality_to_class(
         self,
@@ -559,6 +648,92 @@ class CodeService:
 
         return self.llm.generate(prompt=prompt)
 
+    def get_module_interface(self) -> str:
+        """
+        Extract a lightweight interface for the module (file).
+
+        For Python code, this uses `ast` to extract:
+          - module docstring (if present)
+          - import statements
+          - top-level constants/assignments (simple names)
+          - top-level function signatures + docstrings
+          - top-level class declarations (only headers; class details are handled
+            by get_class_interface)
+
+        For other languages, this falls back to LLM-based extraction.
+
+        Returns
+        -------
+        str
+            A code-like representation of the module's public surface area.
+        """
+        if self.language.lower() == "python":
+            return self._get_python_module_interface()
+
+        prompt = textwrap.dedent(
+            """
+            Extract the public interface of this module/file from the code below.
+
+            Requirements:
+            - Include module-level docstring if present.
+            - Include exported/public functions and their signatures.
+            - Include class declarations (headers only).
+            - Do NOT include bodies; replace with '...' or empty bodies.
+            - Return valid code in the same language as the original.
+
+            Code file:
+            --------------------
+            {code}
+            --------------------
+            """
+        ).format(code=self.code).strip()
+
+        return self.llm.generate(prompt=prompt)
+
+    def get_function_interface(self, function_name: str) -> str:
+        """
+        Extract the interface (signature + docstring) for a top-level function.
+
+        For Python, this uses AST and returns:
+          - def/async def header line
+          - docstring (if any)
+          - '...' body placeholder
+
+        For non-Python languages, this falls back to LLM-based extraction.
+
+        Parameters
+        ----------
+        function_name :
+            Name of the top-level function.
+
+        Returns
+        -------
+        str
+            A code-like stub representing the function interface.
+        """
+        if self.language.lower() == "python":
+            return self._get_python_function_interface(function_name)
+
+        prompt = textwrap.dedent(
+            f"""
+            Extract the public interface for the function '{function_name}' from the code below.
+
+            Requirements:
+            - Include the function declaration line/signature.
+            - Include the function docstring/comment if present.
+            - Do NOT include the function body; replace with '...' or empty body.
+            - Return valid code in the same language as the original.
+
+            Code file:
+            --------------------
+            {self.code}
+            --------------------
+            """
+        ).strip()
+
+        return self.llm.generate(prompt=prompt)
+
+
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
@@ -628,3 +803,115 @@ class CodeService:
 
         first_line = source_segment.splitlines()[0].rstrip()
         return first_line
+    
+    def _get_python_module_interface(self) -> str:
+        """
+        Build a code-like stub showing the module's public surface area.
+
+        Implementation strategy:
+        - Parse the module AST
+        - Include:
+            - module docstring
+            - imports
+            - simple top-level assignments (NAME = <expr>)
+            - top-level function stubs
+            - top-level class headers (not full class interfaces)
+        """
+        try:
+            tree = ast.parse(self.code)
+        except SyntaxError as exc:
+            raise ValueError(f"Failed to parse Python code: {exc}") from exc
+
+        lines: List[str] = []
+
+        # Module docstring
+        module_doc = ast.get_docstring(tree, clean=False)
+        if module_doc:
+            lines.append(f'"""{module_doc}"""')
+            lines.append("")
+
+        for node in tree.body:
+            # Imports
+            if isinstance(node, (ast.Import, ast.ImportFrom)):
+                header = self._extract_node_header(node)
+                if header:
+                    lines.append(header)
+                continue
+
+            # Simple assignments/constants (NAME = ...)
+            if isinstance(node, ast.Assign):
+                # Only keep simple "NAME = ..." cases for readability
+                if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                    header = self._extract_node_header(node)
+                    if header:
+                        lines.append(header)
+                continue
+
+            # Top-level functions
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                lines.append(self._format_python_function_stub(node))
+                lines.append("")
+                continue
+
+            # Top-level classes (headers only; details via get_class_interface)
+            if isinstance(node, ast.ClassDef):
+                class_header = self._extract_node_header(node) or f"class {node.name}:"
+                lines.append(class_header)
+                body_indent = " " * (node.col_offset + 4)
+                lines.append(f"{body_indent}...")
+                lines.append("")
+                continue
+
+        # Trim trailing blank lines
+        while lines and not lines[-1].strip():
+            lines.pop()
+
+        return "\n".join(lines)
+
+    def _get_python_function_interface(self, function_name: str) -> str:
+        """
+        Return a stub for a top-level function: header + docstring + '...'
+        """
+        try:
+            tree = ast.parse(self.code)
+        except SyntaxError as exc:
+            raise ValueError(f"Failed to parse Python code: {exc}") from exc
+
+        fn_node: Optional[ast.AST] = None
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+                fn_node = node
+                break
+
+        if fn_node is None:
+            raise ValueError(f"Top-level function '{function_name}' not found in code.")
+
+        return self._format_python_function_stub(fn_node)  # type: ignore[arg-type]
+
+    def _format_python_function_stub(self, node: ast.AST) -> str:
+        """
+        Format a FunctionDef/AsyncFunctionDef as:
+          <def header>
+              \"\"\"doc\"\"\"
+              ...
+
+        Expects node to be a top-level function node.
+        """
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            raise TypeError("Expected FunctionDef or AsyncFunctionDef")
+
+        lines: List[str] = []
+
+        header = self._extract_node_header(node)
+        if not header:
+            async_prefix = "async " if isinstance(node, ast.AsyncFunctionDef) else ""
+            header = f"{' ' * node.col_offset}{async_prefix}def {node.name}(...):"
+        lines.append(header)
+
+        body_indent = " " * (node.col_offset + 4)
+        doc = ast.get_docstring(node, clean=False)
+        if doc:
+            lines.append(textwrap.indent(f'"""%s"""' % doc, body_indent))
+
+        lines.append(f"{body_indent}...")
+        return "\n".join(lines)
