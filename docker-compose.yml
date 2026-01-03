@@ -1,0 +1,39 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    command: ["serve"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: ollama-init
+    depends_on:
+      - ollama
+    volumes:
+      - ollama:/root/.ollama
+    entrypoint: >
+      sh -c "
+      until ollama list >/dev/null 2>&1; do sleep 1; done &&
+      ollama pull llama3.2:3b
+      "
+    restart: "no"
+
+  app:
+    build: .
+    container_name: llm-local-api
+    ports:
+      - "8000:8000"
+    environment:
+      - LLM_BASE_URL=http://ollama:11434
+      - LLM_MODEL=llama3.2:3b
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+volumes:
+  ollama:

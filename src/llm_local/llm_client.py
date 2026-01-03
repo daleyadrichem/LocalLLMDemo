@@ -288,7 +288,10 @@ class LocalLLM:
                 json=payload,
                 timeout=self.config.timeout_seconds,
             )
-            response.raise_for_status()
+            if not response.ok:
+                logger.error("Ollama status: %s", response.status_code)
+                logger.error("Ollama body: %s", response.text)
+                response.raise_for_status()
         except requests.RequestException as exc:
             raise RuntimeError(f"Failed to call local LLM backend: {exc}") from exc
 
