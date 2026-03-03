@@ -1,170 +1,306 @@
 # **Local LLM Demo**
 
-# llm-local
+# `llm-local`
 
-A small, reusable Python library for interacting with **local LLMs** (e.g. [Ollama](https://ollama.com/)),
-with a focus on **document summarization**.
+A small, reusable Python library and API service for interacting with **local LLMs** (e.g. Ollama), designed for:
 
-This is designed for workshops, demos, and real projects:
-- Clean, library-style `LocalLLM` client
-- Simple utilities for loading and chunking text
-- A CLI script for summarizing `.txt` files
-- Example notebooks for interactive exploration
+* Workshops
+* Demos
+* Prototyping
+* Internal tools
+* Self-hosted AI services
 
----
+This project provides:
 
-## Features
-
-- ✅ Local LLM client (`LocalLLM`) using the **Ollama** HTTP API
-- ✅ Chunking of large documents into overlapping segments
-- ✅ Hierarchical summarization (chunk summaries → global summary)
-- ✅ Reusable utilities (`utils.py`) for text loading, chunking, prompts
-- ✅ CLI demo for workshops: summarize a `.txt` document live
-- ✅ Type hints, docstrings, and basic tooling (ruff, mypy)
+* ✅ A clean, reusable `LocalLLM` Python client
+* ✅ A FastAPI HTTP wrapper for serving the model
+* ✅ Persistent chat session support
+* ✅ Docker + Docker Compose setup (Ollama + API)
+* ✅ CLI demo for document summarization
+* ✅ Type hints, linting, and static typing
 
 ---
 
-## Installation
+# ✨ Features
 
-### 1. Install Ollama and pull a model
+## 1️⃣ Reusable Python Client
 
-Follow the instructions on the Ollama website, then:
+`LocalLLM` (see `llm_client.py`)  provides:
+
+* Simple `generate()` interface
+* Chat-style `chat()` interface
+* Persistent chat sessions:
+
+  * `start_chat()`
+  * `send_chat_message()`
+  * `get_history()`
+  * `reset_chat()`
+* Backend health checks
+* Model listing
+* Configurable temperature, max tokens, and backend options
+
+---
+
+## 2️⃣ FastAPI HTTP API
+
+The project includes a production-ready API layer (`api.py`) .
+
+### Available Endpoints
+
+### System
+
+* `GET /health`
+* `GET /models`
+
+### Generation
+
+* `POST /generate`
+* `POST /chat`
+
+### Persistent Chat
+
+* `POST /chat/start`
+* `POST /chat/send`
+* `GET /chat/history`
+* `POST /chat/reset`
+
+The API wraps the `LocalLLM` client and exposes it as a clean HTTP service.
+
+---
+
+## 3️⃣ Dockerized Setup (Ollama + API)
+
+A full `docker-compose.yml` is included .
+
+It runs:
+
+* `ollama` – LLM backend
+* `ollama-init` – pulls the configured model automatically
+* `app` – FastAPI service wrapping the LLM
+
+---
+
+# 🚀 Quick Start (Docker – Recommended)
+
+## 1️⃣ Start Everything
+
+From the project root:
+
+```bash
+docker compose up --build
+```
+
+This will:
+
+* Start Ollama
+* Pull `llama3.2:3b`
+* Start the FastAPI service on:
+
+```
+http://localhost:8000
+```
+
+---
+
+## 2️⃣ Test the API
+
+### Health check
+
+```bash
+curl http://localhost:8000/health
+```
+
+### List models
+
+```bash
+curl http://localhost:8000/models
+```
+
+### Generate text
+
+```bash
+curl -X POST http://localhost:8000/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Explain what a neural network is.",
+    "temperature": 0.2
+  }'
+```
+
+### Start persistent chat
+
+```bash
+curl -X POST "http://localhost:8000/chat/start?system_prompt=You%20are%20helpful"
+```
+
+### Send message
+
+```bash
+curl -X POST http://localhost:8000/chat/send \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Hi! Who are you?"}'
+```
+
+---
+
+# 🐍 Local Development (Without Docker)
+
+## 1️⃣ Install Ollama
+
+Install Ollama and pull a model:
 
 ```bash
 ollama pull llama3.2:3b
-```
-
-You can use another model if you prefer (e.g. `mistral`, `qwen`, etc.).
-
-Start the Ollama server (if not already running):
-
-```bash
 ollama serve
 ```
 
-### 2. Install the package (using uv)
+---
 
-From the project root:
+## 2️⃣ Install the package
+
+Using `uv` (recommended):
 
 ```bash
 uv pip install -e .
 ```
 
-This will install `llm-local` in editable mode.
-
-If you prefer `pip`:
+Or:
 
 ```bash
 pip install -e .
 ```
 
-> Make sure you have Python ≥ 3.10.
+Python ≥ 3.10 required.
 
 ---
 
-## Quickstart
-
-### Summarize a text file (CLI demo)
-
-From the project root:
+## 3️⃣ Run the API locally
 
 ```bash
-python demo_summarize.py path/to/document.txt \
-    --model llama3.2:3b \
-    --max-words 200 \
-    --temperature 0.0 \
-    --verbose
+uvicorn api:app --reload
 ```
 
-Output will look something like:
+Default configuration:
 
-```text
-================================================================================
-SUMMARY
-================================================================================
+* Base URL: `http://localhost:11434`
+* Model: `llama3.2:3b`
 
-<summary text here>
+You can override via environment variables:
 
-================================================================================
+```bash
+export LLM_BASE_URL=http://localhost:11434
+export LLM_MODEL=llama3.2:3b
 ```
-
-This is perfect for a **live workshop demo**:
-
-* Show the original document
-* Run the command
-* Show the concise summary produced locally on your machine
 
 ---
 
-## Library usage
-
-You can also use `LocalLLM` directly in Python:
+# 📚 Using the Library Directly
 
 ```python
 from llm_local import LocalLLM, LocalLLMConfig
 
-config = LocalLLMConfig(model="llama3.2:3b")
+config = LocalLLMConfig(
+    model="llama3.2:3b",
+    base_url="http://localhost:11434"
+)
+
 llm = LocalLLM(config=config)
 
 # Simple generation
-response = llm.generate("Explain what a neural network is in simple terms.")
-print(response)
+text = llm.generate("Explain transformers in simple terms.")
+print(text)
 
-# Summarize a long text
-long_text = "..."  # your document text
-summary = llm.summarize_text(long_text, max_words=200)
-print(summary)
+# Chat
+messages = [
+    {"role": "system", "content": "You are concise."},
+    {"role": "user", "content": "What is reinforcement learning?"}
+]
+
+reply = llm.chat(messages)
+print(reply)
+
+# Persistent chat
+llm.start_chat(system_prompt="You are a coding assistant.")
+print(llm.send_chat_message("Write a Python function for factorial."))
+print(llm.get_history())
 ```
 
 ---
 
-## Project structure
+# 🗂 Project Structure
 
-```text
-llm_local/
-  __init__.py        # exports LocalLLM
-  llm_client.py      # LocalLLM and LocalLLMConfig classes
-  utils.py           # load_text_file, chunk_text, build_summarization_prompt
-
-demo_summarize.py    # CLI demo for summarizing .txt documents
-
-examples/
-  01_quickstart_summarize.ipynb       # basic usage demo in a notebook
-  02_experiment_with_prompts.ipynb    # playing with prompts and settings
-
-pyproject.toml       # project metadata and build configuration (uv_build)
-ruff.toml            # linting configuration (Ruff)
-mypy.ini             # static typing configuration (mypy)
+```
+.
+├── api.py                  # FastAPI HTTP wrapper
+├── demo_summarize.py       # CLI demo
+├── docker-compose.yml      # Multi-container setup (Ollama + API)
+├── Dockerfile              # App container build
+├── llm_local/
+│   ├── __init__.py
+│   └── llm_client.py       # LocalLLM implementation
+├── examples/
+├── pyproject.toml
+└── README.md
 ```
 
 ---
 
-## Development
+# 🔧 Development
 
-### Install dev dependencies
-
-Using `uv` (recommended):
+## Install dev dependencies
 
 ```bash
 uv pip install -e ".[dev]"
 ```
 
-Or using `pip`:
+or
 
 ```bash
 pip install -e ".[dev]"
 ```
 
-### Run Ruff (lint)
+---
+
+## Lint
 
 ```bash
 ruff check .
 ```
 
-Ruff config is in `ruff.toml`.
+---
 
-### Run mypy (type checking)
+## Type checking
 
 ```bash
 mypy .
 ```
+
+---
+
+# 🧠 Architecture Overview
+
+```
+Client (Python / curl / frontend)
+            ↓
+        FastAPI (api.py)
+            ↓
+        LocalLLM client
+            ↓
+        Ollama backend
+            ↓
+        Local model (llama3, mistral, etc.)
+```
+
+The `LocalLLM` class is intentionally minimal and backend-focused.
+Higher-level logic (agents, RAG, tools, workflows) should be built **on top of it**, not inside it.
+
+---
+
+# 🎯 Intended Use Cases
+
+* Internal AI tools
+* Self-hosted assistants
+* Workshop demos
+* Prototyping before using cloud LLMs
+* Teaching how LLM backends work
+* Building agent systems on local models
