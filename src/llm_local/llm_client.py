@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any
 
 import requests
 
@@ -47,8 +47,8 @@ class LocalLLMConfig:
     base_url: str = "http://localhost:11434"
     timeout_seconds: int = 360
     default_temperature: float = 0.2
-    default_max_tokens: Optional[int] = None
-    default_options: Dict[str, Any] = field(default_factory=dict)
+    default_max_tokens: int | None = None
+    default_options: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -79,7 +79,7 @@ class LocalLLM:
 
     config: LocalLLMConfig = field(default_factory=LocalLLMConfig)
     _session: requests.Session = field(init=False, repr=False)
-    _chat_history: Optional[List[Dict[str, str]]] = field(default=None, init=False)
+    _chat_history: list[dict[str, str]] | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         """
@@ -120,7 +120,7 @@ class LocalLLM:
 
         return True
 
-    def list_models(self) -> List[str]:
+    def list_models(self) -> list[str]:
         """
         List the models available on the local LLM backend.
 
@@ -167,10 +167,10 @@ class LocalLLM:
     def generate(
         self,
         prompt: str,
-        system_prompt: Optional[str] = None,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        options: Optional[Dict[str, Any]] = None,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> str:
         """
         Generate text from the local LLM given a single user prompt.
@@ -206,7 +206,7 @@ class LocalLLM:
             If the request to the LLM backend fails or returns an unexpected
             format.
         """
-        messages: List[Dict[str, str]] = []
+        messages: list[dict[str, str]] = []
 
         if system_prompt:
             messages.append({"role": "system", "content": system_prompt})
@@ -222,10 +222,10 @@ class LocalLLM:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        options: Optional[Dict[str, Any]] = None,
+        messages: list[dict[str, str]],
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> str:
         """
         Send a list of chat messages to the local LLM and return the reply.
@@ -300,12 +300,12 @@ class LocalLLM:
             return data["message"]["content"].strip()
         except (KeyError, TypeError) as exc:
             raise RuntimeError(f"Unexpected response format: {data}") from exc
-        
+
     # ------------------------------------------------------------------
     # NEW SECTION: PERSISTENT CHAT SUPPORT
     # ------------------------------------------------------------------
 
-    def start_chat(self, system_prompt: Optional[str] = None) -> None:
+    def start_chat(self, system_prompt: str | None = None) -> None:
         """
         Start a persistent chat session.
         Optionally pass a system prompt.
@@ -317,9 +317,9 @@ class LocalLLM:
     def send_chat_message(
         self,
         user_message: str,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        options: Optional[Dict[str, Any]] = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        options: dict[str, Any] | None = None,
     ) -> str:
         """
         Add a message to the chat history, send the full conversation
@@ -328,9 +328,7 @@ class LocalLLM:
         Returns the assistant's reply.
         """
         if self._chat_history is None:
-            raise RuntimeError(
-                "No chat session active. Call start_chat() first."
-            )
+            raise RuntimeError("No chat session active. Call start_chat() first.")
 
         # Append user message
         self._chat_history.append({"role": "user", "content": user_message})
@@ -348,7 +346,7 @@ class LocalLLM:
 
         return reply
 
-    def get_history(self) -> List[Dict[str, str]]:
+    def get_history(self) -> list[dict[str, str]]:
         """
         Return the current chat history.
         """

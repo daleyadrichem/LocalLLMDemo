@@ -6,9 +6,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'llm_local'
-copyright = '2025, Daley Adrichem'
-author = 'Daley Adrichem'
+project = "llm_local"
+copyright = "2025, Daley Adrichem"
+author = "Daley Adrichem"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

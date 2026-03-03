@@ -15,8 +15,6 @@ select = [
 
 # Common ignores:
 ignore = [
-    "E203",  # whitespace before ':', conflicts with Black
-    "W503",  # line break before binary operator, conflicts with Black
 ]
 
 [lint.isort]

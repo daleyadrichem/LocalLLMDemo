@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from llm_local import LocalLLM, LocalLLMConfig
-
 
 # ---------------------------------------------------------------------
 # Configuration
@@ -28,16 +27,17 @@ llm = LocalLLM(
 # Pydantic models
 # ---------------------------------------------------------------------
 
+
 class HealthResponse(BaseModel):
     status: str
 
 
 class GenerateRequest(BaseModel):
     prompt: str
-    system_prompt: Optional[str] = None
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    options: Optional[Dict[str, Any]] = None
+    system_prompt: str | None = None
+    temperature: float | None = None
+    max_tokens: int | None = None
+    options: dict[str, Any] | None = None
 
 
 class GenerateResponse(BaseModel):
@@ -45,10 +45,10 @@ class GenerateResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    messages: List[Dict[str, str]]
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    options: Optional[Dict[str, Any]] = None
+    messages: list[dict[str, str]]
+    temperature: float | None = None
+    max_tokens: int | None = None
+    options: dict[str, Any] | None = None
 
 
 class ChatResponse(BaseModel):
@@ -57,17 +57,17 @@ class ChatResponse(BaseModel):
 
 class PersistentChatRequest(BaseModel):
     message: str
-    temperature: Optional[float] = None
-    max_tokens: Optional[int] = None
-    options: Optional[Dict[str, Any]] = None
+    temperature: float | None = None
+    max_tokens: int | None = None
+    options: dict[str, Any] | None = None
 
 
 class ModelsResponse(BaseModel):
-    models: List[str]
+    models: list[str]
 
 
 class ChatHistoryResponse(BaseModel):
-    history: List[Dict[str, str]]
+    history: list[dict[str, str]]
 
 
 # ---------------------------------------------------------------------
@@ -84,6 +84,7 @@ app = FastAPI(
 # ---------------------------------------------------------------------
 # System endpoints
 # ---------------------------------------------------------------------
+
 
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health() -> HealthResponse:
@@ -103,6 +104,7 @@ def list_models() -> ModelsResponse:
 # ---------------------------------------------------------------------
 # Generation endpoints
 # ---------------------------------------------------------------------
+
 
 @app.post("/generate", response_model=GenerateResponse, tags=["generation"])
 def generate(req: GenerateRequest) -> GenerateResponse:
@@ -137,8 +139,9 @@ def chat(req: ChatRequest) -> ChatResponse:
 # Persistent chat endpoints
 # ---------------------------------------------------------------------
 
+
 @app.post("/chat/start", tags=["persistent-chat"])
-def start_chat(system_prompt: Optional[str] = None) -> dict:
+def start_chat(system_prompt: str | None = None) -> dict:
     llm.start_chat(system_prompt=system_prompt)
     return {"status": "chat started"}
 
