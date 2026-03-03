@@ -24,7 +24,7 @@ services:
     restart: "no"
 
   app:
-    build: .
+    image: llm-local-api:latest
     container_name: llm-local-api
     ports:
       - "8000:8000"

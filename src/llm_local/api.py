@@ -1,171 +1,27 @@
+"""
+FastAPI application entrypoint.
+
+This module is intentionally small to keep a stable Uvicorn import path:
+
+    uvicorn llm_local.api:app
+
+Implementation is split across ``llm_local.api_parts`` to keep files smaller,
+more testable, and easier to maintain.
+"""
+
 from __future__ import annotations
 
-import os
-from typing import Any
+from fastapi import FastAPI
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-
-from llm_local import LocalLLM, LocalLLMConfig
-
-# ---------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------
-
-LLM_BASE_URL = os.getenv("LLM_BASE_URL", "http://ollama:11434")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3.2:3b")
-
-llm = LocalLLM(
-    config=LocalLLMConfig(
-        model=LLM_MODEL,
-        base_url=LLM_BASE_URL,
-    )
-)
-
-
-# ---------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------
-
-
-class HealthResponse(BaseModel):
-    status: str
-
-
-class GenerateRequest(BaseModel):
-    prompt: str
-    system_prompt: str | None = None
-    temperature: float | None = None
-    max_tokens: int | None = None
-    options: dict[str, Any] | None = None
-
-
-class GenerateResponse(BaseModel):
-    response: str
-
-
-class ChatRequest(BaseModel):
-    messages: list[dict[str, str]]
-    temperature: float | None = None
-    max_tokens: int | None = None
-    options: dict[str, Any] | None = None
-
-
-class ChatResponse(BaseModel):
-    response: str
-
-
-class PersistentChatRequest(BaseModel):
-    message: str
-    temperature: float | None = None
-    max_tokens: int | None = None
-    options: dict[str, Any] | None = None
-
-
-class ModelsResponse(BaseModel):
-    models: list[str]
-
-
-class ChatHistoryResponse(BaseModel):
-    history: list[dict[str, str]]
-
-
-# ---------------------------------------------------------------------
-# FastAPI app
-# ---------------------------------------------------------------------
+from llm_local.api_parts.routers import generation, models, sessions, system
 
 app = FastAPI(
     title="Local LLM API",
-    description="HTTP API wrapper for a local LLM backend (e.g. Ollama)",
-    version="0.1.0",
+    description="HTTP API wrapper for a local LLM backend (e.g. Ollama), with streaming + sessions + model lifecycle",
+    version="0.2.0",
 )
 
-
-# ---------------------------------------------------------------------
-# System endpoints
-# ---------------------------------------------------------------------
-
-
-@app.get("/health", response_model=HealthResponse, tags=["system"])
-def health() -> HealthResponse:
-    if not llm.is_backend_available():
-        raise HTTPException(status_code=503, detail="LLM backend not available")
-    return HealthResponse(status="ok")
-
-
-@app.get("/models", response_model=ModelsResponse, tags=["system"])
-def list_models() -> ModelsResponse:
-    try:
-        return ModelsResponse(models=llm.list_models())
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-# ---------------------------------------------------------------------
-# Generation endpoints
-# ---------------------------------------------------------------------
-
-
-@app.post("/generate", response_model=GenerateResponse, tags=["generation"])
-def generate(req: GenerateRequest) -> GenerateResponse:
-    try:
-        text = llm.generate(
-            prompt=req.prompt,
-            system_prompt=req.system_prompt,
-            temperature=req.temperature,
-            max_tokens=req.max_tokens,
-            options=req.options,
-        )
-        return GenerateResponse(response=text)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-@app.post("/chat", response_model=ChatResponse, tags=["generation"])
-def chat(req: ChatRequest) -> ChatResponse:
-    try:
-        text = llm.chat(
-            messages=req.messages,
-            temperature=req.temperature,
-            max_tokens=req.max_tokens,
-            options=req.options,
-        )
-        return ChatResponse(response=text)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
-
-
-# ---------------------------------------------------------------------
-# Persistent chat endpoints
-# ---------------------------------------------------------------------
-
-
-@app.post("/chat/start", tags=["persistent-chat"])
-def start_chat(system_prompt: str | None = None) -> dict:
-    llm.start_chat(system_prompt=system_prompt)
-    return {"status": "chat started"}
-
-
-@app.post("/chat/send", response_model=ChatResponse, tags=["persistent-chat"])
-def send_chat(req: PersistentChatRequest) -> ChatResponse:
-    try:
-        reply = llm.send_chat_message(
-            user_message=req.message,
-            temperature=req.temperature,
-            max_tokens=req.max_tokens,
-            options=req.options,
-        )
-        return ChatResponse(response=reply)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/chat/history", response_model=ChatHistoryResponse, tags=["persistent-chat"])
-def get_history() -> ChatHistoryResponse:
-    return ChatHistoryResponse(history=llm.get_history())
-
-
-@app.post("/chat/reset", tags=["persistent-chat"])
-def reset_chat() -> dict:
-    llm.reset_chat()
-    return {"status": "chat reset"}
+app.include_router(system.router)
+app.include_router(models.router)
+app.include_router(generation.router)
+app.include_router(sessions.router)
