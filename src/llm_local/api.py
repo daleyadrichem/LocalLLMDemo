@@ -12,9 +12,9 @@ more testable, and easier to maintain.
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from llm_local.api_parts.routers import generation, models, sessions, system
-from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Local LLM API",
