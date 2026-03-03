@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Local LLM – Tinker UI</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 0; }
+      header { padding: 14px 16px; border-bottom: 1px solid rgba(127,127,127,.35); display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+      header .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+      main { padding: 16px; max-width: 1100px; margin: 0 auto; display:grid; gap: 14px; }
+      .card { border: 1px solid rgba(127,127,127,.35); border-radius: 12px; padding: 12px; }
+      .grid { display:grid; gap: 10px; }
+      .grid.two { grid-template-columns: 1fr 1fr; }
+      @media (max-width: 900px){ .grid.two { grid-template-columns: 1fr; } }
+      label { font-size: 12px; opacity:.85; display:block; margin-bottom:6px; }
+      input[type="text"], input[type="number"], textarea, select {
+        width: 100%; box-sizing: border-box; padding: 10px 10px; border-radius: 10px;
+        border: 1px solid rgba(127,127,127,.45); background: transparent;
+      }
+      textarea { min-height: 110px; resize: vertical; }
+      button {
+        padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(127,127,127,.45);
+        background: rgba(127,127,127,.12); cursor: pointer;
+      }
+      button:disabled { opacity: .6; cursor: not-allowed; }
+      .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+      .tab { padding: 8px 10px; border-radius: 999px; border: 1px solid rgba(127,127,127,.45); cursor:pointer; }
+      .tab.active { background: rgba(127,127,127,.18); }
+      .muted { opacity:.75; font-size: 12px; }
+      pre {
+        white-space: pre-wrap; word-wrap: break-word; padding: 10px; border-radius: 10px;
+        border: 1px solid rgba(127,127,127,.35); background: rgba(127,127,127,.08);
+        min-height: 60px;
+      }
+      .chatlog { display:flex; flex-direction:column; gap:8px; }
+      .bubble { padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(127,127,127,.35); max-width: 100%; }
+      .bubble.user { align-self:flex-end; background: rgba(100,150,255,.12); }
+      .bubble.assistant { align-self:flex-start; background: rgba(127,127,127,.10); }
+      .bubble.system { align-self:center; background: rgba(255,200,100,.10); }
+      .rowline { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+      .grow { flex: 1; }
+      .right { margin-left:auto; }
+    </style>
+  </head>
+
+  <body>
+    <header>
+      <div class="row">
+        <strong>Local LLM – Tinker UI</strong>
+        <span class="muted" id="healthDot">●</span>
+        <span class="muted" id="healthText">not checked</span>
+      </div>
+
+      <div class="row right">
+        <label class="muted" style="margin:0;">
+          API Base URL
+          <input id="baseUrl" type="text" value="http://localhost:8000" style="min-width:320px; margin-top:6px;" />
+        </label>
+        <button id="btnHealth">Health</button>
+        <button id="btnModels">Models</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="tabs card">
+        <div class="tab active" data-tab="generate">Generate</div>
+        <div class="tab" data-tab="chat">Chat (one-shot)</div>
+        <div class="tab" data-tab="sessions">Sessions (persistent)</div>
+      </div>
+
+      <!-- GENERATE -->
+      <section class="card" id="tab-generate">
+        <div class="grid two">
+          <div class="grid">
+            <div>
+              <label>System prompt (optional)</label>
+              <textarea id="genSystem" placeholder="You are a helpful assistant."></textarea>
+            </div>
+            <div>
+              <label>Prompt</label>
+              <textarea id="genPrompt" placeholder="Explain transformers in simple terms."></textarea>
+            </div>
+            <div class="rowline">
+              <div class="grow">
+                <label>Temperature</label>
+                <input id="genTemp" type="number" step="0.1" min="0" max="2" value="0.2" />
+              </div>
+              <div class="grow">
+                <label>Max tokens (optional)</label>
+                <input id="genMax" type="number" step="1" min="1" placeholder="e.g. 256" />
+              </div>
+              <div class="grow">
+                <label>Mode</label>
+                <select id="genMode">
+                  <option value="nonstream" selected>Non-streaming (/generate)</option>
+                  <option value="stream">Streaming SSE (/generate/stream)</option>
+                </select>
+              </div>
+            </div>
+            <div class="rowline">
+              <button id="btnGen">Run</button>
+              <button id="btnGenClear">Clear</button>
+              <span class="muted" id="genStatus"></span>
+            </div>
+          </div>
+
+          <div class="grid">
+            <label>Response</label>
+            <pre id="genOut"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- CHAT (ONE-SHOT) -->
+      <section class="card" id="tab-chat" style="display:none;">
+        <div class="grid two">
+          <div class="grid">
+            <div>
+              <label>Messages (JSON array of {role, content})</label>
+              <textarea id="chatMessages">[
+  {"role":"system","content":"You are concise."},
+  {"role":"user","content":"What is reinforcement learning?"}
+]</textarea>
+            </div>
+            <div class="rowline">
+              <div class="grow">
+                <label>Temperature</label>
+                <input id="chatTemp" type="number" step="0.1" min="0" max="2" value="0.2" />
+              </div>
+              <div class="grow">
+                <label>Max tokens (optional)</label>
+                <input id="chatMax" type="number" step="1" min="1" placeholder="e.g. 256" />
+              </div>
+              <div class="grow">
+                <label>Mode</label>
+                <select id="chatMode">
+                  <option value="nonstream" selected>Non-streaming (/chat)</option>
+                  <option value="stream">Streaming SSE (/chat/stream)</option>
+                </select>
+              </div>
+            </div>
+            <div class="rowline">
+              <button id="btnChat">Run</button>
+              <button id="btnChatClear">Clear</button>
+              <span class="muted" id="chatStatus"></span>
+            </div>
+          </div>
+
+          <div class="grid">
+            <label>Response</label>
+            <pre id="chatOut"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- SESSIONS -->
+      <section class="card" id="tab-sessions" style="display:none;">
+        <div class="grid two">
+          <div class="grid">
+            <div class="rowline">
+              <div class="grow">
+                <label>Session ID</label>
+                <input id="sessId" type="text" placeholder="(create one)" />
+              </div>
+              <button id="btnSessCreate">Create</button>
+              <button id="btnSessDelete" title="DELETE /sessions/{id}">Delete</button>
+              <button id="btnSessHistory">Load history</button>
+            </div>
+
+            <div class="grid two">
+              <div>
+                <label>System prompt (used on create)</label>
+                <textarea id="sessSystem" placeholder="You are a helpful assistant."></textarea>
+              </div>
+              <div>
+                <label>Model override (optional)</label>
+                <input id="sessModel" type="text" placeholder="e.g. llama3.2:3b" />
+                <div class="muted" style="margin-top:6px;">
+                  If blank, server default is used.
+                </div>
+              </div>
+            </div>
+
+            <div class="rowline">
+              <div class="grow">
+                <label>Message</label>
+                <input id="sessMsg" type="text" placeholder="Say hi..." />
+              </div>
+              <div style="min-width:150px;">
+                <label>Temperature</label>
+                <input id="sessTemp" type="number" step="0.1" min="0" max="2" value="0.2" />
+              </div>
+              <div style="min-width:170px;">
+                <label>Max tokens</label>
+                <input id="sessMax" type="number" step="1" min="1" placeholder="optional" />
+              </div>
+              <button id="btnSessSend">Send</button>
+            </div>
+
+            <div class="muted" id="sessStatus"></div>
+          </div>
+
+          <div class="grid">
+            <label>Chat log</label>
+            <div id="sessLog" class="chatlog"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="muted">
+          Tip: If you open this file directly (file://), some browsers block requests. Use a tiny static server.
+          Also, if your API is on a different origin, you may need CORS enabled in FastAPI.
+        </div>
+        <pre id="sysOut"></pre>
+      </section>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+
+      function baseUrl() {
+        return $("baseUrl").value.replace(/\/+$/, "");
+      }
+
+      function setHealth(ok, text) {
+        $("healthDot").style.color = ok ? "limegreen" : "crimson";
+        $("healthText").textContent = text;
+      }
+
+      function logSys(obj) {
+        const cur = $("sysOut").textContent.trim();
+        const next = (cur ? cur + "\n\n" : "") + JSON.stringify(obj, null, 2);
+        $("sysOut").textContent = next;
+      }
+
+      async function apiJson(path, opts = {}) {
+        const url = baseUrl() + path;
+        const res = await fetch(url, {
+          headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+          ...opts,
+        });
+        const text = await res.text();
+        let data = null;
+        try { data = text ? JSON.parse(text) : null; } catch { /* ignore */ }
+        if (!res.ok) {
+          const detail = (data && (data.detail || data.error)) ? (data.detail || data.error) : text;
+          throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+        }
+        return data;
+      }
+
+      // Parse SSE coming from a *POST* endpoint using fetch streaming
+      async function postSse(path, bodyObj, onDelta, onMeta, onDone) {
+        const url = baseUrl() + path;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(bodyObj),
+        });
+        if (!res.ok) {
+          const t = await res.text();
+          throw new Error(`${res.status} ${res.statusText}: ${t}`);
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          // SSE events are separated by double newlines
+          let idx;
+          while ((idx = buffer.indexOf("\n\n")) >= 0) {
+            const chunk = buffer.slice(0, idx);
+            buffer = buffer.slice(idx + 2);
+
+            // crude SSE parse: look for "event:" and "data:"
+            let event = null;
+            let dataLine = null;
+            for (const line of chunk.split("\n")) {
+              if (line.startsWith("event:")) event = line.slice(6).trim();
+              if (line.startsWith("data:")) dataLine = line.slice(5).trim();
+            }
+            if (!dataLine) continue;
+
+            let payload = null;
+            try { payload = JSON.parse(dataLine); } catch { payload = { raw: dataLine }; }
+
+            if (event === "meta" && onMeta) onMeta(payload);
+            else if (event === "delta" && onDelta) onDelta(payload);
+            else if ((event === "done" || event === "error") && onDone) onDone({ event, payload });
+          }
+        }
+      }
+
+      // Tabs
+      document.querySelectorAll(".tab").forEach((t) => {
+        t.addEventListener("click", () => {
+          document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+          t.classList.add("active");
+
+          const name = t.dataset.tab;
+          ["generate","chat","sessions"].forEach((n) => {
+            $("tab-" + n).style.display = (n === name) ? "" : "none";
+          });
+        });
+      });
+
+      // Health / models
+      $("btnHealth").onclick = async () => {
+        try {
+          const data = await apiJson("/health");
+          setHealth(true, data.status || "ok");
+          logSys({ health: data });
+        } catch (e) {
+          setHealth(false, e.message);
+          logSys({ health_error: String(e) });
+        }
+      };
+
+      $("btnModels").onclick = async () => {
+        try {
+          const data = await apiJson("/models");
+          logSys({ models: data });
+        } catch (e) {
+          logSys({ models_error: String(e) });
+        }
+      };
+
+      // Generate
+      $("btnGen").onclick = async () => {
+        $("genOut").textContent = "";
+        $("genStatus").textContent = "working…";
+        $("btnGen").disabled = true;
+
+        const payload = {
+          prompt: $("genPrompt").value,
+          system_prompt: $("genSystem").value || null,
+          temperature: $("genTemp").value ? Number($("genTemp").value) : null,
+          max_tokens: $("genMax").value ? Number($("genMax").value) : null,
+        };
+
+        try {
+          const mode = $("genMode").value;
+          if (mode === "nonstream") {
+            const data = await apiJson("/generate", { method: "POST", body: JSON.stringify(payload) });
+            $("genOut").textContent = data.response ?? "";
+          } else {
+            await postSse(
+              "/generate/stream",
+              payload,
+              (d) => { if (d && d.content) $("genOut").textContent += d.content; },
+              (m) => logSys({ generate_stream_meta: m }),
+              (done) => logSys({ generate_stream_end: done })
+            );
+          }
+          $("genStatus").textContent = "done";
+        } catch (e) {
+          $("genStatus").textContent = "error";
+          $("genOut").textContent = String(e);
+        } finally {
+          $("btnGen").disabled = false;
+        }
+      };
+
+      $("btnGenClear").onclick = () => {
+        $("genOut").textContent = "";
+        $("genStatus").textContent = "";
+      };
+
+      // Chat (one-shot)
+      $("btnChat").onclick = async () => {
+        $("chatOut").textContent = "";
+        $("chatStatus").textContent = "working…";
+        $("btnChat").disabled = true;
+
+        let messages;
+        try {
+          messages = JSON.parse($("chatMessages").value);
+        } catch (e) {
+          $("chatStatus").textContent = "bad JSON";
+          $("chatOut").textContent = "Messages must be valid JSON.";
+          $("btnChat").disabled = false;
+          return;
+        }
+
+        const payload = {
+          messages,
+          temperature: $("chatTemp").value ? Number($("chatTemp").value) : null,
+          max_tokens: $("chatMax").value ? Number($("chatMax").value) : null,
+        };
+
+        try {
+          const mode = $("chatMode").value;
+          if (mode === "nonstream") {
+            const data = await apiJson("/chat", { method: "POST", body: JSON.stringify(payload) });
+            $("chatOut").textContent = data.response ?? "";
+          } else {
+            await postSse(
+              "/chat/stream",
+              payload,
+              (d) => { if (d && d.content) $("chatOut").textContent += d.content; },
+              (m) => logSys({ chat_stream_meta: m }),
+              (done) => logSys({ chat_stream_end: done })
+            );
+          }
+          $("chatStatus").textContent = "done";
+        } catch (e) {
+          $("chatStatus").textContent = "error";
+          $("chatOut").textContent = String(e);
+        } finally {
+          $("btnChat").disabled = false;
+        }
+      };
+
+      $("btnChatClear").onclick = () => {
+        $("chatOut").textContent = "";
+        $("chatStatus").textContent = "";
+      };
+
+      // Sessions
+      function addBubble(role, content) {
+        const div = document.createElement("div");
+        div.className = "bubble " + role;
+        div.textContent = content;
+        $("sessLog").appendChild(div);
+        div.scrollIntoView({ block: "end", behavior: "smooth" });
+      }
+
+      async function loadHistory() {
+        const id = $("sessId").value.trim();
+        if (!id) return;
+        const data = await apiJson(`/sessions/${encodeURIComponent(id)}/history`);
+        $("sessLog").innerHTML = "";
+        for (const m of (data.history || [])) {
+          // API returns Message objects with role/content in the newer schema
+          const role = (m.role || "assistant").toLowerCase();
+          addBubble(role, m.content ?? "");
+        }
+      }
+
+      $("btnSessCreate").onclick = async () => {
+        $("sessStatus").textContent = "creating…";
+        try {
+          const payload = {
+            system_prompt: $("sessSystem").value || null,
+            model: $("sessModel").value || null,
+          };
+          const data = await apiJson("/sessions", { method: "POST", body: JSON.stringify(payload) });
+          $("sessId").value = data.session_id;
+          $("sessStatus").textContent = `created session ${data.session_id} (model: ${data.model})`;
+          await loadHistory();
+        } catch (e) {
+          $("sessStatus").textContent = "error: " + String(e);
+        }
+      };
+
+      $("btnSessDelete").onclick = async () => {
+        const id = $("sessId").value.trim();
+        if (!id) return;
+        $("sessStatus").textContent = "deleting…";
+        try {
+          const data = await apiJson(`/sessions/${encodeURIComponent(id)}`, { method: "DELETE" });
+          $("sessStatus").textContent = data.status === "ok" ? "deleted" : "deleted (unknown)";
+          $("sessId").value = "";
+          $("sessLog").innerHTML = "";
+        } catch (e) {
+          $("sessStatus").textContent = "error: " + String(e);
+        }
+      };
+
+      $("btnSessHistory").onclick = async () => {
+        $("sessStatus").textContent = "loading…";
+        try {
+          await loadHistory();
+          $("sessStatus").textContent = "loaded";
+        } catch (e) {
+          $("sessStatus").textContent = "error: " + String(e);
+        }
+      };
+
+      $("btnSessSend").onclick = async () => {
+        const id = $("sessId").value.trim();
+        const msg = $("sessMsg").value.trim();
+        if (!id) { $("sessStatus").textContent = "create/select a session first"; return; }
+        if (!msg) return;
+
+        $("btnSessSend").disabled = true;
+        $("sessStatus").textContent = "sending…";
+        addBubble("user", msg);
+
+        try {
+          const payload = {
+            message: msg,
+            temperature: $("sessTemp").value ? Number($("sessTemp").value) : null,
+            max_tokens: $("sessMax").value ? Number($("sessMax").value) : null,
+          };
+          const data = await apiJson(`/sessions/${encodeURIComponent(id)}/messages`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          addBubble("assistant", data.response ?? "");
+          $("sessMsg").value = "";
+          $("sessStatus").textContent = "done";
+        } catch (e) {
+          $("sessStatus").textContent = "error: " + String(e);
+          addBubble("assistant", String(e));
+        } finally {
+          $("btnSessSend").disabled = false;
+        }
+      };
+
+      // convenience: enter to send in sessions
+      $("sessMsg").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); $("btnSessSend").click(); }
+      });
+    </script>
+  </body>
+</html>

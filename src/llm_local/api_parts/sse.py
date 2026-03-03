@@ -1,70 +1,31 @@
-"""
-Shared dependencies for the API layer.
-
-This module contains:
-- Backend configuration (environment variables)
-- A singleton LocalLLM client instance
-- In-memory session storage and helpers
-
-Notes
------
-The in-memory session store is intended for local/dev usage. If you want
-durability or multi-replica support, replace this with a database/redis.
-"""
+# src/llm_local/api_parts/sse.py
+"""Server-Sent Events helpers."""
 
 from __future__ import annotations
 
-import os
-import uuid
-
-from fastapi import HTTPException
-
-from llm_local import LocalLLM, LocalLLMConfig
-from llm_local.api_parts.schemas import ChatSession
-
-LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "http://ollama:11434")
-LLM_MODEL: str = os.getenv("LLM_MODEL", "llama3.2:3b")
-
-llm = LocalLLM(
-    config=LocalLLMConfig(
-        model=LLM_MODEL,
-        base_url=LLM_BASE_URL,
-    )
-)
-
-SESSIONS: dict[str, ChatSession] = {}
+import json
+from typing import Any
 
 
-def get_session(session_id: str) -> ChatSession:
-    """Fetch a chat session from in-memory storage.
+def sse(event: str | None, data: Any) -> str:
+    """Format a Server-Sent Event message.
+
+    The `data:` field is JSON-encoded so clients can parse reliably.
 
     Parameters
     ----------
-    session_id
-        Unique session identifier.
-
-    Returns
-    -------
-    ChatSession
-        The stored session.
-
-    Raises
-    ------
-    fastapi.HTTPException
-        If the session does not exist (404).
-    """
-    sess = SESSIONS.get(session_id)
-    if sess is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return sess
-
-
-def new_session_id() -> str:
-    """Generate a new unique session identifier.
+    event
+        Optional SSE event name (e.g., ``"delta"``, ``"done"``).
+        If ``None``, no ``event:`` line is emitted.
+    data
+        JSON-serializable payload.
 
     Returns
     -------
     str
-        Hex-encoded UUID.
+        A correctly formatted SSE message ending with a double newline.
     """
-    return uuid.uuid4().hex
+    payload = json.dumps(data, ensure_ascii=False)
+    if event:
+        return f"event: {event}\ndata: {payload}\n\n"
+    return f"data: {payload}\n\n"
