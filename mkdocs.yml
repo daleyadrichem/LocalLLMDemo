@@ -1,2 +1,29 @@
+site_name: Local LLM Demo
+site_description: Modular Python client and FastAPI wrapper for local LLM backends
+site_author: Your Name
 repo_url: https://github.com/daleyadrichem/LocalLLMDemo
 repo_name: daleyadrichem/LocalLLMDemo
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Guides:
+      - Docker Quickstart: guides/docker.md
+      - Local Development: guides/local-dev.md
+      - Streaming (SSE): guides/streaming.md
+      - Sessions: guides/sessions.md
+      - Models: guides/models.md
+  - Reference:
+      - Python API: reference/python.md
+      - HTTP API: reference/http.md
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true

@@ -1,4 +1,3 @@
-
 # Persistent Sessions
 
 Sessions are stored in-memory.

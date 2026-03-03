@@ -22,7 +22,7 @@ text/event-stream
 curl -N -X POST http://localhost:8000/generate/stream \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Write a poem"}'
-````
+```
 
 ---
 
