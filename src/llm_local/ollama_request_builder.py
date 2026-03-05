@@ -9,11 +9,22 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaRequestBuilder:
-    """
-    Builds backend-specific payloads from high-level inputs.
+    """Build request payloads for Ollama endpoints.
+
+    Parameters
+    ----------
+    config : LocalLLMConfig
+        Shared configuration containing default generation options.
     """
 
     def __init__(self, config: LocalLLMConfig) -> None:
+        """Initialize the request builder.
+
+        Parameters
+        ----------
+        config : LocalLLMConfig
+            Runtime configuration used to fill request defaults.
+        """
         self.config = config
 
     def _merged_options(
@@ -22,6 +33,24 @@ class OllamaRequestBuilder:
         max_tokens: int | None,
         options: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        """Merge request-level options with configured defaults.
+
+        Parameters
+        ----------
+        temperature : float | None
+            Temperature override for the request. When ``None``, the configured
+            default temperature is used.
+        max_tokens : int | None
+            Token limit override for the request. When positive, this value is
+            mapped to Ollama's ``num_predict`` option.
+        options : dict[str, Any] | None
+            Additional Ollama options that should override merged defaults.
+
+        Returns
+        -------
+        dict[str, Any]
+            Effective options dictionary to include in an Ollama request.
+        """
         effective_temperature = (
             temperature if temperature is not None else self.config.default_temperature
         )
@@ -50,6 +79,28 @@ class OllamaRequestBuilder:
         options: dict[str, Any] | None,
         stream: bool,
     ) -> dict[str, Any]:
+        """Build a payload for Ollama's chat endpoint.
+
+        Parameters
+        ----------
+        model : str
+            Model name to target for chat completion.
+        messages : list[dict[str, str]]
+            Chat messages represented as role/content dictionaries.
+        temperature : float | None
+            Optional temperature override for the request.
+        max_tokens : int | None
+            Optional token limit override for the request.
+        options : dict[str, Any] | None
+            Optional additional Ollama options.
+        stream : bool
+            Whether the server should stream partial responses.
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON-serializable payload for the chat API.
+        """
         return {
             "model": model,
             "messages": messages,
@@ -67,6 +118,30 @@ class OllamaRequestBuilder:
         options: dict[str, Any] | None,
         stream: bool,
     ) -> dict[str, Any]:
+        """Build a payload for Ollama's generate endpoint.
+
+        Parameters
+        ----------
+        model : str
+            Model name to target for text generation.
+        prompt : str
+            User prompt passed to the model.
+        system_prompt : str | None
+            Optional system instruction included as the ``system`` field.
+        temperature : float | None
+            Optional temperature override for the request.
+        max_tokens : int | None
+            Optional token limit override for the request.
+        options : dict[str, Any] | None
+            Optional additional Ollama options.
+        stream : bool
+            Whether the server should stream partial responses.
+
+        Returns
+        -------
+        dict[str, Any]
+            JSON-serializable payload for the generate API.
+        """
         payload: dict[str, Any] = {
             "model": model,
             "prompt": prompt,

@@ -3,11 +3,18 @@ repos:
     rev: v0.4.4
     hooks:
       - id: ruff
-        args: ["--fix"]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.0
     hooks:
       - id: mypy
-        additional_dependencies: []
+        name: mypy (uv)
+        entry: uv run --active mypy
+        args: 
+          - --config-file=mypy.ini
+          - --no-incremental
+          - --cache-dir=/tmp/precommit-mypy-cache
+        language: python
+        types: [python]
+        pass_filenames: true
