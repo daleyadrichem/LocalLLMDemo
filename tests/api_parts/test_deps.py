@@ -2,8 +2,8 @@
 
 import re
 
-import pytest
 from fastapi import HTTPException
+import pytest
 
 from llm_local.api_parts import deps
 from llm_local.api_parts.schemas import ChatSession

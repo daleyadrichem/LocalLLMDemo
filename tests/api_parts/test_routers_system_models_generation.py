@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from dataclasses import dataclass
+import json
 from typing import Any
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 
 def _parse_sse(text: str) -> list[tuple[str | None, Any]]:
@@ -160,7 +160,7 @@ class DummyLLM:
         if self.raise_on_generate_stream:
             raise RuntimeError("generate stream failed")
         for c in self.gen_stream_chunks:
-            yield c
+            yield from c
 
     def chat_stream(
         self,
@@ -172,7 +172,7 @@ class DummyLLM:
         if self.raise_on_chat_stream:
             raise RuntimeError("chat stream failed")
         for c in self.chat_stream_chunks:
-            yield c
+            yield from c
 
 
 @pytest.fixture()

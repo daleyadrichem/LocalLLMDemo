@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 import json
-from typing import Any, Iterator
+from typing import Any
 
 import pytest
 import requests
@@ -45,7 +46,7 @@ class DummyResponse:
 
     def iter_lines(self, decode_unicode: bool = True) -> Iterator[str]:
         for line in self._iter_lines_data:
-            yield line
+            yield from line
 
 
 class DummySession:
@@ -56,9 +57,7 @@ class DummySession:
         self.get_response: DummyResponse | Exception | None = None
 
     def post(self, url: str, json: dict[str, Any], timeout: int, stream: bool = False):
-        self.post_calls.append(
-            {"url": url, "json": json, "timeout": timeout, "stream": stream}
-        )
+        self.post_calls.append({"url": url, "json": json, "timeout": timeout, "stream": stream})
         if isinstance(self.post_response, Exception):
             raise self.post_response
         assert self.post_response is not None, "DummySession.post_response must be set"

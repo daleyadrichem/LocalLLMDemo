@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Any
 
 import pytest
 
@@ -55,12 +56,12 @@ class FakeHTTP:
     def generate_stream(self, payload: dict[str, Any]) -> Iterator[dict[str, Any]]:
         self.generate_payloads.append(payload)
         for x in self.generate_stream_items:
-            yield x
+            yield from x
 
     def chat_stream(self, payload: dict[str, Any]) -> Iterator[dict[str, Any]]:
         self.chat_payloads.append(payload)
         for x in self.chat_stream_items:
-            yield x
+            yield from x
 
     def pull(self, name: str) -> None:
         self.pulled.append(name)

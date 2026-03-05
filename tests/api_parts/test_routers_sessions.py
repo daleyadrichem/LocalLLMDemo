@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 from dataclasses import dataclass
+import json
 from typing import Any
 
-import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+import pytest
 
 from llm_local.api_parts.schemas import Message, Role
 
@@ -124,7 +124,7 @@ class DummyLLMWithConfig:
         if self.raise_on_stream:
             raise RuntimeError("stream failed")
         for c in self.stream_chunks:
-            yield c
+            yield from c
 
 
 @pytest.fixture()
@@ -355,7 +355,9 @@ def test_send_session_message_stream_appends_assistant_when_include_true(app_cli
     assert dummy.stream_calls[-1]["model_override"] == "m1"
 
 
-def test_send_session_message_stream_does_not_append_assistant_when_include_false(app_client_and_state):
+def test_send_session_message_stream_does_not_append_assistant_when_include_false(
+    app_client_and_state,
+):
     client, store, dummy = app_client_and_state
     dummy.stream_chunks = ["a", "b"]
 

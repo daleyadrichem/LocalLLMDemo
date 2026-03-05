@@ -1,7 +1,7 @@
 # tests/api_parts/test_schemas.py
 
-import pytest
 from pydantic import ValidationError
+import pytest
 
 from llm_local.api_parts.schemas import (
     ChatRequest,
