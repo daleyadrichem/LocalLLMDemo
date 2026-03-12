@@ -1,0 +1,261 @@
+classDiagram
+direction TB
+
+class LocalLLMConfig {
+  +str model = "llama3.2:3b"
+  +str base_url = "http://localhost:11434"
+  +int timeout_seconds = 360
+  +float default_temperature = 0.2
+  +int|None default_max_tokens = None
+  +dict[str, Any] default_options = {}
+  --
+  +Configuration for connecting to a local LLM server (e.g. Ollama).
+}
+
+class OllamaRequestBuilder {
+  -LocalLLMConfig config
+  --
+  +__init__(config: LocalLLMConfig) None
+  +_merged_options(temperature, max_tokens, options) dict[str, Any]
+  +chat_payload(model, messages, temperature, max_tokens, options, stream) dict[str, Any]
+  +generate_payload(model, prompt, system_prompt, temperature, max_tokens, options, stream) dict[str, Any]
+  --
+  +Builds backend-specific payloads from high-level inputs.
+}
+
+class OllamaHTTPClient {
+  -str base_url
+  -int timeout_seconds
+  -requests.Session session
+  --
+  +__init__(base_url, timeout_seconds) None
+  +_post_json(path, payload) dict[str, Any]
+  +_post_stream(path, payload) Iterator[dict[str, Any]]
+  +_get_json(path) dict[str, Any]
+  +tags() dict[str, Any]
+  +chat(payload) dict[str, Any]
+  +chat_stream(payload) Iterator[dict[str, Any]]
+  +generate(payload) dict[str, Any]
+  +generate_stream(payload) Iterator[dict[str, Any]]
+  +pull(name: str) None
+  +delete(name: str) None
+  +show(name: str) dict[str, Any]
+  --
+  +Low-level HTTP client for the Ollama API.
+}
+
+class LocalLLM {
+  +LocalLLMConfig config
+  -OllamaHTTPClient _http
+  -OllamaRequestBuilder _builder
+  --
+  +__post_init__() None
+  +is_backend_available() bool
+  +list_models() list[str]
+  +pull_model(name: str) None
+  +delete_model(name: str) None
+  +show_model(name: str) dict[str, Any]
+  +generate(prompt, system_prompt=None, temperature=None, max_tokens=None, options=None, model_override=None) str
+  +chat(messages, temperature=None, max_tokens=None, options=None, model_override=None) str
+  +generate_stream(prompt, system_prompt=None, temperature=None, max_tokens=None, options=None, model_override=None) Iterator[str]
+  +chat_stream(messages, temperature=None, max_tokens=None, options=None, model_override=None) Iterator[str]
+  --
+  +High-level client for interacting with a local LLM server (Ollama).
+}
+
+class Role {
+  <<enumeration>>
+  system
+  user
+  assistant
+  tool
+}
+
+class Message {
+  +Role role
+  +str content
+  --
+  +_strip_and_validate_content(v: str) str
+  +to_backend() dict[str, str]
+  --
+  +A single chat message.
+}
+
+class ChatSession {
+  +str session_id
+  +float created_at
+  +str model
+  +str|None system_prompt
+  +list[Message] messages
+  --
+  +In-memory chat session.
+}
+
+class HealthResponse {
+  +str status
+}
+
+class ModelsResponse {
+  +list[str] models
+}
+
+class ModelPullRequest {
+  +str name
+}
+
+class ModelPullResponse {
+  +str status
+}
+
+class ModelDeleteResponse {
+  +str status
+}
+
+class ModelShowResponse {
+  +str model
+  +dict[str, Any] details
+}
+
+class GenerateRequest {
+  +str prompt
+  +str|None system_prompt
+  +float|None temperature
+  +int|None max_tokens
+  +dict[str, Any]|None options
+}
+
+class GenerateResponse {
+  +str response
+}
+
+class ChatRequest {
+  +list[Message] messages
+  +float|None temperature
+  +int|None max_tokens
+  +dict[str, Any]|None options
+}
+
+class ChatResponse {
+  +str response
+}
+
+class CreateSessionRequest {
+  +str|None system_prompt
+  +str|None model
+}
+
+class CreateSessionResponse {
+  +str session_id
+  +str model
+  +float created_at
+}
+
+class SessionInfoResponse {
+  +str session_id
+  +str model
+  +str|None system_prompt
+  +float created_at
+  +int message_count
+}
+
+class ChatHistoryResponse {
+  +list[Message] history
+}
+
+class SessionMessageRequest {
+  +str message
+  +float|None temperature
+  +int|None max_tokens
+  +dict[str, Any]|None options
+  --
+  +_strip_and_validate_message(v: str) str
+}
+
+class SessionMessageResponse {
+  +str response
+}
+
+class DeleteSessionResponse {
+  +str status
+}
+
+class DepsModule {
+  <<module>>
+  +str LLM_BASE_URL
+  +str LLM_MODEL
+  +LocalLLM llm
+  +dict[str, ChatSession] SESSIONS
+  --
+  +get_session(session_id: str) ChatSession
+  +new_session_id() str
+  --
+  +Shared dependencies for the API layer.
+}
+
+class SSEModule {
+  <<module>>
+  +sse(event: str|None, data: Any) str
+  --
+  +Server-Sent Events helpers.
+}
+
+class ApiApp {
+  <<module>>
+  +FastAPI app
+  --
+  +FastAPI application entrypoint.
+}
+
+class SystemRouter {
+  <<router>>
+  +health() HealthResponse
+}
+
+class ModelsRouter {
+  <<router>>
+  +list_models() ModelsResponse
+  +pull_model(req: ModelPullRequest) ModelPullResponse
+  +delete_model(name: str) ModelDeleteResponse
+  +show_model(name: str) ModelShowResponse
+}
+
+class GenerationRouter {
+  <<router>>
+  +generate(req: GenerateRequest) GenerateResponse
+  +chat(req: ChatRequest) ChatResponse
+  +generate_stream(req: GenerateRequest) StreamingResponse
+  +chat_stream(req: ChatRequest) StreamingResponse
+}
+
+class SessionsRouter {
+  <<router>>
+  +create_session(req: CreateSessionRequest) CreateSessionResponse
+  +get_session_info(session_id: str) SessionInfoResponse
+  +get_session_history(session_id: str) ChatHistoryResponse
+  +delete_session(session_id: str) DeleteSessionResponse
+  +send_session_message(session_id: str, req: SessionMessageRequest) SessionMessageResponse
+  +send_session_message_stream(session_id: str, req: SessionMessageRequest) StreamingResponse
+}
+
+LocalLLM *-- OllamaHTTPClient
+LocalLLM *-- OllamaRequestBuilder
+LocalLLM --> LocalLLMConfig
+OllamaRequestBuilder --> LocalLLMConfig
+
+Message --> Role
+ChatSession *-- Message
+ChatRequest *-- Message
+ChatHistoryResponse *-- Message
+
+DepsModule --> LocalLLM : singleton llm
+DepsModule --> ChatSession : stores
+ApiApp --> SystemRouter : includes
+ApiApp --> ModelsRouter : includes
+ApiApp --> GenerationRouter : includes
+ApiApp --> SessionsRouter : includes
+
+ModelsRouter --> DepsModule : uses
+GenerationRouter --> DepsModule : uses
+SessionsRouter --> DepsModule : uses
+GenerationRouter --> SSEModule : streaming
+SessionsRouter --> SSEModule : streaming
